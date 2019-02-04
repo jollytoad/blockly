@@ -320,7 +320,7 @@ Blockly.RenderedConnection.prototype.isConnectionAllowed = function(candidate,
   }
 
   return Blockly.RenderedConnection.superClass_.isConnectionAllowed.call(this,
-      candidate);
+      candidate, maxRadius);
 };
 
 /**

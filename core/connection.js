@@ -373,9 +373,11 @@ Blockly.Connection.prototype.canConnectToPrevious_ = function(candidate) {
 /**
  * Check if the two connections can be dragged to connect to each other.
  * @param {!Blockly.Connection} candidate A nearby connection to check.
+ * @param {number} maxRadius The maximum radius allowed for connections, in
+ *     workspace units.
  * @return {boolean} True if the connection is allowed, false otherwise.
  */
-Blockly.Connection.prototype.isConnectionAllowed = function(candidate) {
+Blockly.Connection.prototype.isConnectionAllowed = function(candidate, maxRadius) {
   // Don't consider insertion markers.
   if (candidate.sourceBlock_.isInsertionMarker()) {
     return false;

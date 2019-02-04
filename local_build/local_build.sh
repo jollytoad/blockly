@@ -108,7 +108,7 @@ rm temp.js 2> /dev/null
 if [ -s local_blocks_compressed.js ]; then
        echo Compilation OK
        # Remove Blockly initialization line. This is present in local_blockly_compressed.
-       sed -i 's/var Blockly={Blocks:{}};//g' local_blocks_compressed.js
+       sed -i '' 's/var Blockly={Blocks:{}};//g' local_blocks_compressed.js
 else
        echo Compilation FAIL.
        exit 1
