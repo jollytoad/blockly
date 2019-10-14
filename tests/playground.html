@@ -432,6 +432,8 @@ function toggleAccessibilityMode(state) {
 
 function logger(e) {
   console.log(e);
+
+  Blockly.mainWorkspace.getAllBlocks().forEach(b => b.render(false))
 }
 
 function airstrike(n) {

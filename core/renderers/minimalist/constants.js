@@ -172,3 +172,64 @@ Blockly.utils.object.inherits(Blockly.minimalist.ConstantProvider,
 //     pathUp: pathUp
 //   };
 // };
+
+Blockly.minimalist.ConstantProvider.prototype.init = function() {
+  Blockly.minimalist.ConstantProvider.superClass_.init.call(this);
+
+  this.TRIANGLE_TAB = this.makeTriangleTab();
+};
+
+Blockly.minimalist.ConstantProvider.prototype.makeTriangleTab = function() {
+  var width = this.TAB_WIDTH;
+  var height = this.TAB_HEIGHT;
+
+  function makeMainPath(up) {
+    return Blockly.utils.svgPaths.line(
+        [
+          Blockly.utils.svgPaths.point(-width, -1 * up * height / 2),
+          Blockly.utils.svgPaths.point(width, -1 * up * height / 2)
+        ]);
+  }
+
+  var pathUp = makeMainPath(1);
+  var pathDown = makeMainPath(-1);
+
+  return {
+    width: width,
+    height: height,
+    pathDown: pathDown,
+    pathUp: pathUp
+  };
+};
+
+Blockly.minimalist.ConstantProvider.prototype.shapeFor = function(connection) {
+
+  switch (connection.type) {
+    case Blockly.INPUT_VALUE:
+      var reason = Blockly.selected && Blockly.selected.outputConnection &&
+          Blockly.selected.outputConnection.canConnectWithReason_(connection);
+
+      if (reason === Blockly.Connection.CAN_CONNECT) {
+        return this.TRIANGLE_TAB;
+      } else {
+        return this.PUZZLE_TAB;
+      }
+
+    case Blockly.OUTPUT_VALUE:
+      var here = Blockly.selected === connection.getSourceBlock();
+
+      if (here) {
+        return this.TRIANGLE_TAB;
+      }
+
+      var shape = connection.targetConnection && this.shapeFor(connection.targetConnection);
+
+      return shape || this.PUZZLE_TAB;
+
+    case Blockly.PREVIOUS_STATEMENT:
+    case Blockly.NEXT_STATEMENT:
+      return this.NOTCH;
+    default:
+      throw Error('Unknown connection type');
+  }
+};
