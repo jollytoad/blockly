@@ -72,7 +72,57 @@ function workspaceToSvg_(workspace, callback) {
   var blockCanvas = workspace.getCanvas();
   var clone = blockCanvas.cloneNode(true);
   clone.removeAttribute('transform');
-  
+
+  var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svg.appendChild(clone);
+  svg.setAttribute('viewBox',
+      x + ' ' + y + ' ' + width + ' ' + height);
+
+  svg.setAttribute('class', 'blocklySvg');
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute("style", 'background-color: transparent');
+
+  var css = [].slice.call(document.head.querySelectorAll('style'))
+      .filter(function(el) { return /\.blocklySvg/.test(el.innerText); })[0];
+  var style = document.createElement('style');
+  style.innerHTML = css.innerText;
+  svg.insertBefore(style, svg.firstChild);
+
+  var svgAsXML = (new XMLSerializer).serializeToString(svg);
+  svgAsXML = svgAsXML.replace(/&nbsp/g, '&#160');
+  var data = 'data:image/svg+xml,' + encodeURIComponent(svgAsXML);
+
+  svgToPng_(data, width, height, callback);
+}
+
+/**
+ * Create an SVG of a block on the workspace.
+ * @param {!Blockly.BlockSvg} block The block.
+ * @param {!Function} callback Callback.
+ */
+function blockToSvg_(block, callback) {
+
+  // Go through all text areas and set their value.
+  var textAreas = document.getElementsByTagName("textarea");
+  for (var i = 0; i < textAreas.length; i++) {
+    textAreas[i].innerHTML = textAreas[i].value;
+  }
+
+  var bBox = block.getBoundingRectangle();
+  // TODO: It would be nice to have a common method on WorkspaceSvg & BlockSvg for this
+  var x = 0;
+  var y = 0;
+  var width = bBox.right - bBox.left;
+  var height = bBox.bottom - bBox.top;
+
+  // TODO: It would be nice to have a common method on WorkspaceSvg & BlockSvg for this
+  var blockCanvas = block.getSvgRoot();
+  var clone = blockCanvas.cloneNode(true);
+  clone.removeAttribute('transform');
+  Blockly.utils.dom.removeClass(clone, 'blocklySelected');
+
   var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.appendChild(clone);
@@ -105,6 +155,22 @@ Blockly.downloadScreenshot = function(workspace) {
   workspaceToSvg_(workspace, function(datauri) {
     var a = document.createElement('a');
     a.download = 'screenshot.png';
+    a.target = '_self';
+    a.href = datauri;
+    document.body.appendChild(a);
+    a.click();
+    a.parentNode.removeChild(a);
+  });
+};
+
+/**
+ * Download an image of a specific block on a Blockly workspace.
+ * @param {!Blockly.BlockSvg} block The Block.
+ */
+Blockly.downloadBlock = function(block) {
+  blockToSvg_(block, function(datauri) {
+    var a = document.createElement('a');
+    a.download = block.type + '.png';
     a.target = '_self';
     a.href = datauri;
     document.body.appendChild(a);

@@ -268,6 +268,24 @@ Blockly.ContextMenu.blockDuplicateOption = function(block) {
 };
 
 /**
+ * Make a context menu option for downloading the current block.
+ * @param {!Blockly.BlockSvg} block The block where the right-click originated.
+ * @return {!Object} A menu option, containing text, enabled, and a callback.
+ * @package
+ */
+Blockly.ContextMenu.blockDownloadOption = function(block) {
+  var enabled = !!Blockly.downloadBlock;
+  var downloadOption = {
+    text: Blockly.Msg['DOWNLOAD_BLOCK'],
+    enabled: enabled,
+    callback: function() {
+      Blockly.downloadBlock(block);
+    }
+  };
+  return downloadOption;
+};
+
+/**
  * Make a context menu option for adding or removing comments on the current
  * block.
  * @param {!Blockly.BlockSvg} block The block where the right-click originated.

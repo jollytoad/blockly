@@ -139,6 +139,9 @@ Blockly.Msg.UNDO = 'Undo';
 /** @type {string} */
 /// context menu - Undo the previous undo action.\n{{Identical|Redo}}
 Blockly.Msg.REDO = 'Redo';
+/** @type {string} */
+/// context menu - Download an image of the selected block (and any blocks it contains).
+Blockly.Msg.DOWNLOAD_BLOCK = 'Download Block Image';
 
 // Variable renaming.
 /** @type {string} */
