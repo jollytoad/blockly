@@ -26,9 +26,10 @@
  * @param {string} data SVG datauri.
  * @param {number} width Image width.
  * @param {number} height Image height.
+ * @param {?string} code Extra code chunk to add to the PNG.
  * @param {!Function} callback Callback.
  */
-function svgToPng_(data, width, height, callback) {
+function svgToPng_(data, width, height, code, callback) {
   var canvas = document.createElement("canvas");
   var context = canvas.getContext("2d");
   var img = new Image();
@@ -40,11 +41,18 @@ function svgToPng_(data, width, height, callback) {
     context.drawImage(
         img, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
     try {
-      var dataUri = canvas.toDataURL('image/png');
-      callback(dataUri);
+      if (code) {
+        Blockly.utils.PNG.fromCanvas(canvas, function(png) {
+          png.setCodeChunk(code);
+          var blob = png.toBlob();
+          callback(URL.createObjectURL(blob));
+        });
+      } else {
+        var dataUri = canvas.toDataURL('image/png');
+        callback(dataUri);
+      }
     } catch (err) {
-      console.warn('Error converting the workspace svg to a png');
-      callback('');
+      console.warn('Error converting the workspace svg to a png', err);
     }
   };
   img.src = data;
@@ -73,7 +81,7 @@ function workspaceToSvg_(workspace, callback) {
   var clone = blockCanvas.cloneNode(true);
   clone.removeAttribute('transform');
 
-  var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.appendChild(clone);
   svg.setAttribute('viewBox',
@@ -85,7 +93,9 @@ function workspaceToSvg_(workspace, callback) {
   svg.setAttribute("style", 'background-color: transparent');
 
   var css = [].slice.call(document.head.querySelectorAll('style'))
-      .filter(function(el) { return /\.blocklySvg/.test(el.innerText); })[0];
+      .filter(function(el) {
+        return /\.blocklySvg/.test(el.innerText);
+      })[0];
   var style = document.createElement('style');
   style.innerHTML = css.innerText;
   svg.insertBefore(style, svg.firstChild);
@@ -94,7 +104,7 @@ function workspaceToSvg_(workspace, callback) {
   svgAsXML = svgAsXML.replace(/&nbsp/g, '&#160');
   var data = 'data:image/svg+xml,' + encodeURIComponent(svgAsXML);
 
-  svgToPng_(data, width, height, callback);
+  svgToPng_(data, width, height, null, callback);
 }
 
 /**
@@ -123,7 +133,7 @@ function blockToSvg_(block, callback) {
   clone.removeAttribute('transform');
   Blockly.utils.dom.removeClass(clone, 'blocklySelected');
 
-  var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.appendChild(clone);
   svg.setAttribute('viewBox',
@@ -135,7 +145,9 @@ function blockToSvg_(block, callback) {
   svg.setAttribute("style", 'background-color: transparent');
 
   var css = [].slice.call(document.head.querySelectorAll('style'))
-      .filter(function(el) { return /\.blocklySvg/.test(el.innerText); })[0];
+      .filter(function(el) {
+        return /\.blocklySvg/.test(el.innerText);
+      })[0];
   var style = document.createElement('style');
   style.innerHTML = css.innerText;
   svg.insertBefore(style, svg.firstChild);
@@ -144,7 +156,11 @@ function blockToSvg_(block, callback) {
   svgAsXML = svgAsXML.replace(/&nbsp/g, '&#160');
   var data = 'data:image/svg+xml,' + encodeURIComponent(svgAsXML);
 
-  svgToPng_(data, width, height, callback);
+  var blockXML = document.createElement('xml');
+  blockXML.appendChild(Blockly.Xml.blockToDom(block, true));
+  var blockCode = Blockly.Xml.domToText(blockXML);
+
+  svgToPng_(data, width, height, blockCode, callback);
 }
 
 /**
@@ -176,5 +192,67 @@ Blockly.downloadBlock = function(block) {
     document.body.appendChild(a);
     a.click();
     a.parentNode.removeChild(a);
+  });
+};
+
+/**
+ * Bind drop events
+ * @param {!Blockly.WorkspaceSvg} workspace The workspace
+ * @param {!Element} el The root workspace element
+ */
+Blockly.bindDropEvents = function(workspace, el) {
+
+  el.addEventListener('dragover', function(e) {
+    console.log('DRAGOVER', e);
+    e.preventDefault();
+  });
+  el.addEventListener('drop', function(e) {
+    e.preventDefault();
+
+    var metrics = workspace.getMetrics();
+    var point = Blockly.utils.mouseToSvg(e, workspace.getParentSvg(), workspace.getInverseScreenCTM());
+    point.x = (point.x + metrics.viewLeft) / workspace.scale;
+    point.y = (point.y + metrics.viewTop) / workspace.scale;
+
+    if (e.dataTransfer.types.indexOf('Files') >= 0) {
+      if (e.dataTransfer.files.item(0).type === 'image/png') {
+        Blockly.importPngAsBlock(workspace, point, e.dataTransfer.files.item(0));
+      }
+    } else if (e.dataTransfer.types.indexOf('text/uri-list') >= 0) {
+      var data = e.dataTransfer.getData('text/uri-list');
+      if (data.match(/\.png$/)) {
+        e.preventDefault();
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+            Blockly.importPngAsBlock(workspace, point, xhr.response);
+          }
+        };
+        xhr.responseType = 'blob';
+        xhr.open('GET', data, true);
+        xhr.send();
+      }
+    }
+  });
+};
+
+/**
+ * Imports a block from a PNG file if the code chunk is present.
+ * @param {!Blockly.WorkspaceSvg} workspace the target workspace for the block
+ * @param {Blockly.utils.Coordinate} xy the coordinate to place the block
+ * @param {Blob} png the blob representing the PNG file
+ */
+Blockly.importPngAsBlock = function(workspace, xy, png) {
+  Blockly.utils.PNG.fromBlob(png, function(png) {
+    var xmlChunk = png.getCodeChunk();
+    if (xmlChunk) {
+      var xmlText = new TextDecoder().decode(xmlChunk.data);
+      var xml = /** @type {!Element} */ Blockly.Xml.textToDom(xmlText);
+      xml = xml.firstElementChild;
+      var block = /** @type {Blockly.BlockSvg} */ Blockly.Xml.domToBlock(xml, workspace);
+      block.moveBy(xy.x, xy.y);
+      block.initSvg();
+      block.render();
+    }
   });
 };

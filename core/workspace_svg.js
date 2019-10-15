@@ -639,6 +639,10 @@ Blockly.WorkspaceSvg.prototype.createDom = function(opt_backgroundClass) {
         this.onMouseDown_, false, true);
     Blockly.bindEventWithChecks_(this.svgGroup_, 'wheel', this,
         this.onMouseWheel_);
+
+    if (Blockly.bindDropEvents) {
+      Blockly.bindDropEvents(this, this.svgGroup_);
+    }
   }
 
   // Determine if there needs to be a category tree, or a simple list of
